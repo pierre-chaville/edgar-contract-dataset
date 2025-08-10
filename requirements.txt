@@ -1,2 +1,8 @@
 sec-api
 python-dotenv
+beautifulsoup4
+lxml
+langchain
+langchain-openai
+streamlit
+pandas

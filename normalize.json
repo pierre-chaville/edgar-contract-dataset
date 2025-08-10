@@ -1,0 +1,29 @@
+{
+    "master": {
+        "First Lien ISDA 2002 Master Agreement": "ISDA Master Agreement",
+        "GLOBAL MASTER REPURCHASE AGREEMENT": "Global Master Repurchase Agreement (GMRA)",
+        "Global Master Repurchase Agreement (GMRA)": "Global Master Repurchase Agreement (GMRA)",
+        "GMRA": "Global Master Repurchase Agreement (GMRA)",
+        "ISDA": "ISDA Master Agreement",
+        "ISDA Master Agreement": "ISDA Master Agreement",
+        "ISDA MASTER AGREEMENT (CURRENCY SWAP AGREEMENT)": "ISDA Master Agreement",
+        "ISDA Master Agreement (Interest Rate Swap Agreement)": "ISDA Master Agreement",
+        "other": "Other",
+        "TBMA/ISMA Global Master Repurchase Agreement": "Global Master Repurchase Agreement (GMRA)"
+    },
+    "collateral": {
+        "CSA": "Credit Support Annex",
+        "CSA (Credit Support Annex)": "Credit Support Annex",
+        "Guaranty": "Guaranty",
+        "ISDA": "Credit Support Annex",
+        "ISDA Credit Support Annex": "Credit Support Annex"
+      },
+      "other": {
+        "Guarantee": "Guaranty",
+        "Guaranty": "Guaranty",
+        "ISDA": "ISDA Master Agreement",
+        "other": "Other",
+        "Swap Transfer and Assignment Agreement": "Swap Transfer and Assignment Agreement",
+        "Unknown": "Unknown"
+      }
+}
