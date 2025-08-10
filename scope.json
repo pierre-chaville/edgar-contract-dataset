@@ -1,0 +1,21 @@
+[
+    {
+        "type": "ISDA",
+        "search": "ISDA Master agreement",
+        "keywords": [
+            "ISDA",
+            "Master agreement"
+        ],
+        "start": 2004,
+        "end": 2025
+    },
+    {
+        "type": "GMRA",
+        "search": "Global Master repurchase agreement",
+        "keywords": [
+            "Global Master repurchase agreement"
+        ],
+        "start": 2004,
+        "end": 2025
+    }
+]
