@@ -236,12 +236,9 @@ def process_scope(
     overwrite: bool,
     max_files: Optional[int] = None,
 ) -> None:
-    scope_dir = os.path.join(dataset_dir, scope_type)
-    if not os.path.isdir(scope_dir):
-        logging.info("Skip missing scope directory %s", scope_dir)
-        return
-
-    filings_path = os.path.join(scope_dir, "filings.json")
+    # Flat layout: filings at dataset/filings_<scope>.json and files in dataset/files/
+    files_dir = os.path.join(dataset_dir, "files")
+    filings_path = os.path.join(dataset_dir, f"filings_{scope_type}.json")
     filings: List[Dict[str, Any]] = []
     if ensure_exists(filings_path):
         filings = read_json_file(filings_path)
@@ -250,10 +247,11 @@ def process_scope(
             filings = []
     else:
         # Build from *.htm files if no filings.json exists
-        for name in sorted(os.listdir(scope_dir)):
-            if name.lower().endswith((".htm", ".html")):
-                uid = os.path.splitext(name)[0]
-                filings.append({"uid": uid})
+        if os.path.isdir(files_dir):
+            for name in sorted(os.listdir(files_dir)):
+                if name.lower().endswith((".htm", ".html")):
+                    uid = os.path.splitext(name)[0]
+                    filings.append({"uid": uid})
 
     processed = 0
     for filing in filings:
@@ -263,12 +261,12 @@ def process_scope(
         # Skip if already has metadata and not overwriting
         if not overwrite and isinstance(filing.get("metadata"), dict):
             continue
-        html_path = os.path.join(scope_dir, f"{uid}.htm")
+        html_path = os.path.join(files_dir, f"{uid}.htm")
         if not ensure_exists(html_path):
             # try .html
-            html_path = os.path.join(scope_dir, f"{uid}.html")
+            html_path = os.path.join(files_dir, f"{uid}.html")
         if not ensure_exists(html_path):
-            logging.debug("HTML not found for uid=%s in %s", uid, scope_dir)
+            logging.debug("HTML not found for uid=%s in %s", uid, files_dir)
             continue
 
         meta, total_words = extract_metadata_html(chain, html_path, max_words=max_words)

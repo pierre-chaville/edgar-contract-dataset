@@ -3,8 +3,9 @@
 Streamlit app to browse extracted contract metadata.
 
 Features:
-- Loads all `dataset/<scope>/filings.json`
-- Provides filters: document type, contract type, is amendment
+- Loads either a combined `dataset/filings.json` (normalized) or all `dataset/filings_<scope>.json` (pre-normalized)
+- HTML files are stored under `dataset/files/`
+- Provides filters: contract type, is amendment
 - Displays filtered documents as a table with key metadata fields
 """
 
@@ -25,14 +26,13 @@ def read_json(path: str) -> Any:
         return json.load(f)
 
 
-def list_scope_dirs(dataset_dir: str) -> List[str]:
+def list_scopes_flat(dataset_dir: str) -> List[str]:
     scopes: List[str] = []
     if not os.path.isdir(dataset_dir):
         return scopes
     for name in sorted(os.listdir(dataset_dir)):
-        full = os.path.join(dataset_dir, name)
-        if os.path.isdir(full) and os.path.exists(os.path.join(full, "filings.json")):
-            scopes.append(name)
+        if name.startswith("filings_") and name.endswith(".json"):
+            scopes.append(name[len("filings_") : -len(".json")])
     return scopes
 
 
@@ -42,21 +42,16 @@ def flatten_filing(scope: str, filing: Dict[str, Any], dataset_dir: str) -> Dict
     party1 = meta.get("party_1") or {}
     party2 = meta.get("party_2") or {}
     uid = filing.get("uid") or ""
-    html_htm = os.path.join(dataset_dir, scope, f"{uid}.htm")
-    html_html = os.path.join(dataset_dir, scope, f"{uid}.html")
+    files_dir = os.path.join(dataset_dir, "files")
+    html_htm = os.path.join(files_dir, f"{uid}.htm")
+    html_html = os.path.join(files_dir, f"{uid}.html")
     html_path = html_htm if os.path.exists(html_htm) else (html_html if os.path.exists(html_html) else None)
 
     return {
         "scope": scope,
         "uid": uid,
-        "accessionNo": filing.get("accessionNo"),
-        "companyNameLong": filing.get("companyNameLong"),
-        "description": filing.get("description"),
         "formType": filing.get("formType"),
-        "filedAt": filing.get("filedAt"),
         # metadata
-        "document_type": meta.get("document_type") or "Unknown",
-        "contract_category": meta.get("contract_category") or None,
         "contract_type": meta.get("contract_type") or "Unknown",
         "version_type": meta.get("version_type") or None,
         "contract_date": meta.get("contract_date") or None,
@@ -64,14 +59,10 @@ def flatten_filing(scope: str, filing: Dict[str, Any], dataset_dir: str) -> Dict
         "amendment_date": meta.get("amendment_date") or None,
         "amendment_number": meta.get("amendment_number") or None,
         "party_1_name": party1.get("name"),
-        "party_1_address": party1.get("address"),
         "party_2_name": party2.get("name"),
-        "party_2_address": party2.get("address"),
-        "explanation": meta.get("explanation") or None,
         "confidence": meta.get("confidence"),
         # stats and paths
-        "doc_word_count": stats.get("doc_word_count"),
-        "doc_pages_estimate": stats.get("doc_pages_estimate"),
+        "doc_pages_estimate": int(stats.get("doc_pages_estimate")),
         "html_path": html_path,
     }
 
@@ -79,15 +70,26 @@ def flatten_filing(scope: str, filing: Dict[str, Any], dataset_dir: str) -> Dict
 @st.cache_data(show_spinner=False)
 def load_dataset_rows(dataset_dir: str) -> pd.DataFrame:
     rows: List[Dict[str, Any]] = []
-    for scope in list_scope_dirs(dataset_dir):
-        filings_path = os.path.join(dataset_dir, scope, "filings.json")
+    combined_path = os.path.join(dataset_dir, "filings.json")
+    if os.path.exists(combined_path):
         try:
-            filings = read_json(filings_path)
+            filings = read_json(combined_path)
         except Exception:
             filings = []
         if isinstance(filings, list):
             for filing in filings:
+                scope = str(filing.get("scope") or "unknown")
                 rows.append(flatten_filing(scope, filing, dataset_dir))
+    else:
+        for scope in list_scopes_flat(dataset_dir):
+            filings_path = os.path.join(dataset_dir, f"filings_{scope}.json")
+            try:
+                filings = read_json(filings_path)
+            except Exception:
+                filings = []
+            if isinstance(filings, list):
+                for filing in filings:
+                    rows.append(flatten_filing(scope, filing, dataset_dir))
     if not rows:
         return pd.DataFrame()
     return pd.DataFrame(rows)
@@ -97,25 +99,18 @@ def main() -> None:
     st.set_page_config(page_title="EDGAR Contract Metadata", layout="wide")
     st.title("EDGAR Contract Dataset – Metadata Browser")
 
-    with st.sidebar:
-        st.header("Filters")
-        dataset_dir = st.text_input("Dataset directory", value="dataset")
+    dataset_dir = "dataset"
 
     df = load_dataset_rows(dataset_dir)
     if df.empty:
-        st.info("No dataset found. Ensure `dataset/<scope>/filings.json` files exist.")
+        st.info("No dataset found. Provide either `dataset/filings.json` (normalized) or one/more `dataset/filings_<scope>.json` files. Ensure HTMLs are under `dataset/files/`.")
         return
 
     # Prepare filter choices
-    all_doc_types = sorted([x for x in df["document_type"].dropna().unique().tolist()])
     all_contract_types = sorted([x for x in df["contract_type"].dropna().unique().tolist()])
 
     with st.sidebar:
-        doc_type_selected = st.multiselect(
-            "Document type",
-            options=all_doc_types,
-            default=all_doc_types,
-        )
+        st.header("Filters")
         contract_type_selected = st.multiselect(
             "Contract type",
             options=all_contract_types,
@@ -129,8 +124,6 @@ def main() -> None:
 
     # Apply filters
     filtered = df.copy()
-    if doc_type_selected:
-        filtered = filtered[filtered["document_type"].isin(doc_type_selected)]
     if contract_type_selected:
         filtered = filtered[filtered["contract_type"].isin(contract_type_selected)]
     if is_amendment_choice != "All":
@@ -142,15 +135,8 @@ def main() -> None:
 
     with tab_table:
         display_cols = [
-            "scope",
             "uid",
-            "accessionNo",
-            "companyNameLong",
-            "description",
             "formType",
-            "filedAt",
-            "document_type",
-            "contract_category",
             "contract_type",
             "version_type",
             "contract_date",
@@ -264,10 +250,10 @@ def main() -> None:
                     row = row.iloc[0]
                     html_path = row.get("html_path")
                     if not html_path or not os.path.exists(html_path):
-                        # Try constructing from scope/uid
-                        scope_val = str(row.get("scope") or "")
-                        candidate_htm = os.path.join(dataset_dir, scope_val, f"{selected_uid}.htm")
-                        candidate_html = os.path.join(dataset_dir, scope_val, f"{selected_uid}.html")
+                        # Try constructing from shared files dir
+                        files_dir = os.path.join(dataset_dir, "files")
+                        candidate_htm = os.path.join(files_dir, f"{selected_uid}.htm")
+                        candidate_html = os.path.join(files_dir, f"{selected_uid}.html")
                         html_path = candidate_htm if os.path.exists(candidate_htm) else (
                             candidate_html if os.path.exists(candidate_html) else None
                         )

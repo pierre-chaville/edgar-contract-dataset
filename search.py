@@ -194,9 +194,9 @@ def save_scope_filings_json(
     Returns:
         str: Path to the saved JSON file.
     """
-    target_dir = os.path.join(base_dir, scope_type)
-    ensure_dir(target_dir)
-    out_path = os.path.join(target_dir, "filings.json")
+    # Flat layout: dataset/filings_<scope>.json
+    ensure_dir(base_dir)
+    out_path = os.path.join(base_dir, f"filings_{scope_type}.json")
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(filings, f, indent=2)
     return out_path
@@ -224,8 +224,8 @@ def download_and_filter_filings(
     Returns:
         List[Dict[str, Any]]: List of selected filing metadata with added UIDs.
     """
-    # Save filtered files directly under dataset/<scope_type>
-    files_dir = os.path.join(base_dir, scope_type)
+    # Flat layout: save all files under dataset/files
+    files_dir = os.path.join(base_dir, "files")
     ensure_dir(files_dir)
     selected: List[Dict[str, Any]] = []
     for filing in filings:
